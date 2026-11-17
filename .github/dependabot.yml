@@ -1,0 +1,13 @@
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    ignore:
+      # Pinned on purpose: the analyzer must load in the .NET 8 SDK (Roslyn 4.8).
+      - dependency-name: Microsoft.CodeAnalysis.CSharp
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
