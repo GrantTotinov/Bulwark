@@ -11,13 +11,14 @@
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" />
     <PackageReference Include="ModelContextProtocol.AspNetCore" />
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Bulwark.AspNetCore.Analyzers\Bulwark.AspNetCore.Analyzers.csproj" />
+    <ProjectReference Include="..\..\src\Bulwark.AspNetCore.CodeFixes\Bulwark.AspNetCore.CodeFixes.csproj" />
   </ItemGroup>
 
   <!-- Programs from aspnetcore-security-bench: analyzed by the tests, not compiled into them. -->
