@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
@@ -25,24 +26,30 @@ public sealed class CorsAnalyzer : DiagnosticAnalyzer
             }
 
             // One policy is one builder: the calls of a chain, or the calls on one lambda parameter or variable.
-            start.RegisterOperationBlockAction(block =>
+            start.RegisterOperationBlockStartAction(block =>
             {
-                var calls = block.OperationBlocks
-                    .SelectMany(b => b.DescendantsAndSelf())
-                    .OfType<IInvocationOperation>()
-                    .Where(c => SymbolEqualityComparer.Default.Equals(c.TargetMethod.ContainingType, builder))
-                    .Select(c => (Call: c, Root: Operations.Root(c)))
-                    .ToList();
-
-                foreach (var anyOrigin in calls.Where(c => IsAnyOrigin(c.Call)))
+                var calls = new ConcurrentQueue<(IInvocationOperation Call, object? Root)>();
+                block.RegisterOperationAction(ctx =>
                 {
-                    if (calls.Any(c => c.Call.TargetMethod.Name == "AllowCredentials" && Operations.SameRoot(c.Root, anyOrigin.Root)))
+                    var call = (IInvocationOperation)ctx.Operation;
+                    if (SymbolEqualityComparer.Default.Equals(call.TargetMethod.ContainingType, builder))
                     {
-                        var location = Operations.NameAndArguments(anyOrigin.Call);
-                        block.ReportDiagnostic(Diagnostic.Create(
-                            Descriptors.CorsAnyOriginWithCredentials, location, location.SourceTree!.GetText().ToString(location.SourceSpan)));
+                        calls.Enqueue((call, Operations.Root(call)));
                     }
-                }
+                }, OperationKind.Invocation);
+
+                block.RegisterOperationBlockEndAction(end =>
+                {
+                    foreach (var anyOrigin in calls.Where(c => IsAnyOrigin(c.Call)))
+                    {
+                        if (calls.Any(c => c.Call.TargetMethod.Name == "AllowCredentials" && Operations.SameRoot(c.Root, anyOrigin.Root)))
+                        {
+                            var location = Operations.NameAndArguments(anyOrigin.Call);
+                            end.ReportDiagnostic(Diagnostic.Create(
+                                Descriptors.CorsAnyOriginWithCredentials, location, location.SourceTree!.GetText().ToString(location.SourceSpan)));
+                        }
+                    }
+                });
             });
         });
     }

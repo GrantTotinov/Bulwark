@@ -1,4 +1,5 @@
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Operations;
 using Microsoft.CodeAnalysis.Text;
@@ -15,9 +16,11 @@ internal static class Operations
     /// The variable a call chain starts from: <c>app</c> in <c>app.UseRateLimiter().UseRouting()</c>,
     /// <c>policy</c> in <c>policy => policy.AllowCredentials()</c>. Falls back to the first operation of the chain.
     /// </summary>
-    public static object? Root(IInvocationOperation call)
+    public static object? Root(IInvocationOperation call) => RootOf(Receiver(call));
+
+    /// <summary>The variable an expression starts from, walking down conversions and call chains.</summary>
+    public static object? RootOf(IOperation? op)
     {
-        var op = Receiver(call);
         while (true)
         {
             if (op is IConversionOperation conversion)
@@ -68,6 +71,50 @@ internal static class Operations
         call.Syntax is InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax member }
             ? member.Name.GetLocation()
             : call.Syntax.GetLocation();
+
+    /// <summary>
+    /// True inside <c>if (env.IsDevelopment())</c> or <c>if (env.IsEnvironment("Development"))</c>,
+    /// or inside the <c>else</c> of <c>if (!env.IsDevelopment())</c>.
+    /// </summary>
+    public static bool InDevelopmentBranch(SyntaxNode node)
+    {
+        foreach (var statement in node.Ancestors().OfType<IfStatementSyntax>())
+        {
+            var condition = Unparenthesize(statement.Condition);
+            if (condition is PrefixUnaryExpressionSyntax { Operand: var operand } negation &&
+                negation.IsKind(SyntaxKind.LogicalNotExpression) &&
+                IsDevelopmentCheck(Unparenthesize(operand)))
+            {
+                if (statement.Else?.Span.Contains(node.Span) == true)
+                {
+                    return true;
+                }
+            }
+            else if (statement.Statement.Span.Contains(node.Span) &&
+                     condition.DescendantNodesAndSelf().OfType<InvocationExpressionSyntax>()
+                         .Any(c => IsDevelopmentCheck(c) && !c.Parent.IsKind(SyntaxKind.LogicalNotExpression)))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsDevelopmentCheck(ExpressionSyntax expression) =>
+        expression is InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax { Name.Identifier.ValueText: var name } } call &&
+        (name == "IsDevelopment" ||
+         (name == "IsEnvironment" && call.ArgumentList.Arguments.FirstOrDefault()?.Expression is LiteralExpressionSyntax { Token.ValueText: "Development" }));
+
+    private static ExpressionSyntax Unparenthesize(ExpressionSyntax expression)
+    {
+        while (expression is ParenthesizedExpressionSyntax parenthesized)
+        {
+            expression = parenthesized.Expression;
+        }
+
+        return expression;
+    }
 
     public static bool Implements(ITypeSymbol? type, INamedTypeSymbol? @interface) =>
         type is not null && @interface is not null &&

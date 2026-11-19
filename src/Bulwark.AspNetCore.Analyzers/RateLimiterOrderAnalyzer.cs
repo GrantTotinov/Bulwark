@@ -39,28 +39,39 @@ public sealed class RateLimiterOrderAnalyzer : DiagnosticAnalyzer
             void Found() => Interlocked.Exchange(ref endpointPolicies, 1);
             bool Enables(ISymbol symbol) => symbol.GetAttributes().Any(a => Operations.DerivesFrom(a.AttributeClass, enable));
 
-            start.RegisterOperationBlockAction(block =>
+            start.RegisterOperationBlockStartAction(block =>
             {
-                var calls = block.OperationBlocks
-                    .SelectMany(b => b.DescendantsAndSelf())
-                    .OfType<IInvocationOperation>()
-                    .ToList();
-
-                if (calls.Any(c => Is(c, conventions, "RequireRateLimiting")))
+                var limiters = new ConcurrentQueue<IInvocationOperation>();
+                var routings = new ConcurrentQueue<IInvocationOperation>();
+                block.RegisterOperationAction(ctx =>
                 {
-                    Found();
-                }
-
-                var routings = calls.Where(c => Is(c, routing, "UseRouting")).ToList();
-                foreach (var limiter in calls.Where(c => Is(c, rateLimiter, "UseRateLimiter")))
-                {
-                    var position = Operations.Name(limiter).SourceSpan.Start;
-                    var root = Operations.Root(limiter);
-                    if (routings.Any(r => Operations.Name(r).SourceSpan.Start > position && Operations.SameRoot(Operations.Root(r), root)))
+                    var call = (IInvocationOperation)ctx.Operation;
+                    if (Is(call, rateLimiter, "UseRateLimiter"))
                     {
-                        limitersBeforeRouting.Add(Operations.NameAndArguments(limiter));
+                        limiters.Enqueue(call);
                     }
-                }
+                    else if (Is(call, routing, "UseRouting"))
+                    {
+                        routings.Enqueue(call);
+                    }
+                    else if (Is(call, conventions, "RequireRateLimiting"))
+                    {
+                        Found();
+                    }
+                }, OperationKind.Invocation);
+
+                block.RegisterOperationBlockEndAction(_ =>
+                {
+                    foreach (var limiter in limiters)
+                    {
+                        var position = Operations.Name(limiter).SourceSpan.Start;
+                        var root = Operations.Root(limiter);
+                        if (routings.Any(r => Operations.Name(r).SourceSpan.Start > position && Operations.SameRoot(Operations.Root(r), root)))
+                        {
+                            limitersBeforeRouting.Add(Operations.NameAndArguments(limiter));
+                        }
+                    }
+                });
             });
 
             // [EnableRateLimiting] on controllers, actions and minimal API lambdas.
