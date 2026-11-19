@@ -49,7 +49,56 @@ internal static class Descriptors
         "A network attacker who can intercept an HTTP metadata request can replace the signing keys and forge tokens that the app accepts. Remove the setting, or limit it to the Development environment.",
         "CWE-319");
 
+    public static readonly DiagnosticDescriptor McpWithoutAuthorization = Create(
+        "BWK007",
+        "MCP endpoint is mapped without authorization",
+        "MapMcp() exposes the server's tools to any client that can reach it; add RequireAuthorization(), or AllowAnonymous() if the server is meant to be public",
+        "An MCP endpoint lets clients list and call the server's tools, which often read data or take actions. Without RequireAuthorization(), a fallback authorization policy or the MCP authorization filters, anyone who can reach the URL can use them. Add RequireAuthorization() to the MapMcp() call, or AllowAnonymous() to document that the server is public.",
+        "CWE-306",
+        WellKnownDiagnosticTags.CompilationEnd);
+
+    public static readonly DiagnosticDescriptor CookieWithoutSecure = Create(
+        "BWK008",
+        "Cookie can be sent over HTTP",
+        "CookieSecurePolicy.None lets the browser send this cookie over plain HTTP, where anyone on the network can read it",
+        "A cookie without the Secure attribute is sent on every HTTP request to the site, for example after a downgrade or a mistyped http:// link. For authentication, session and antiforgery cookies, that hands the session to anyone on the network. Use CookieSecurePolicy.Always.",
+        "CWE-614");
+
+    public static readonly DiagnosticDescriptor CookieReadableByScripts = Create(
+        "BWK009",
+        "Cookie is readable by scripts",
+        "HttpOnly = false lets any script on the page read this cookie, so a cross-site scripting flaw can steal it",
+        "Authentication, session and antiforgery cookies do not need to be read by JavaScript. With HttpOnly = false, one injected script can copy the cookie and use the session elsewhere. Keep HttpOnly = true.",
+        "CWE-1004");
+
+    public static readonly DiagnosticDescriptor ErrorDetailsOutsideDevelopment = Create(
+        "BWK010",
+        "Error details are exposed outside Development",
+        "{0} sends exception details to clients outside the Development environment",
+        "Stack traces, SQL, file paths and configuration values in error responses help attackers map the app. WebApplication already shows the developer exception page in Development. Remove the call or setting, or limit it to the Development environment.",
+        "CWE-209");
+
+    public static readonly DiagnosticDescriptor ForwardedHeadersFromAnyProxy = Create(
+        "BWK011",
+        "Forwarded headers are accepted from any proxy",
+        "Clearing both KnownProxies and KnownNetworks makes the app trust X-Forwarded-* headers from any client, so callers can spoof their IP address and scheme",
+        "The forwarded headers middleware only applies X-Forwarded-For, X-Forwarded-Proto and X-Forwarded-Host from trusted proxies. With both lists empty, any client can set them, which defeats IP-based rate limits, allow lists and logging, and can fake HTTPS. Add the proxy's address to KnownProxies or its network to KnownIPNetworks.",
+        "CWE-348");
+
+    public static readonly DiagnosticDescriptor PasskeyServerDomainFromHost = Create(
+        "BWK012",
+        "Passkey relying party ID comes from the Host header",
+        "IdentityPasskeyOptions.ServerDomain is not set, so the passkey relying party ID is taken from the request's Host header",
+        "When ServerDomain is null, ASP.NET Core Identity derives the WebAuthn relying party ID from the Host header. Unless the hosting environment validates Host headers, a request with another host can scope passkey operations to a domain the attacker controls. Set ServerDomain to the app's domain.",
+        "CWE-346",
+        DiagnosticSeverity.Info,
+        WellKnownDiagnosticTags.CompilationEnd);
+
     private static DiagnosticDescriptor Create(string id, string title, string message, string description, params string[] tags) =>
-        new(id, title, message, "Security", DiagnosticSeverity.Warning, isEnabledByDefault: true, description,
-            $"https://github.com/GrantTotinov/Bulwark/blob/main/docs/rules/{id}.md", tags);
+        Create(id, title, message, description, tags[0], DiagnosticSeverity.Warning, tags.Skip(1).ToArray());
+
+    private static DiagnosticDescriptor Create(
+        string id, string title, string message, string description, string cwe, DiagnosticSeverity severity, params string[] tags) =>
+        new(id, title, message, "Security", severity, isEnabledByDefault: true, description,
+            $"https://github.com/GrantTotinov/Bulwark/blob/main/docs/rules/{id}.md", [cwe, .. tags]);
 }

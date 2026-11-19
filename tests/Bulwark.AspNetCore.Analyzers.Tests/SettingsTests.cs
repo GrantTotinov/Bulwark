@@ -1,6 +1,6 @@
 namespace Bulwark.AspNetCore.Analyzers.Tests;
 
-public class TokenValidationTests
+public class SettingsTests
 {
     [Fact]
     public async Task Reports_disabled_signature_checks_and_http_metadata()
@@ -76,4 +76,55 @@ public class TokenValidationTests
                 }
             });
             """));
+
+    [Fact]
+    public async Task Reports_cookies_without_secure_or_http_only() =>
+        Assert.Equal(["BWK008: o.Cookie.SecurePolicy = CookieSecurePolicy.None", "BWK009: o.Cookie.HttpOnly = false"], await Analyze.Program("""
+            var builder = WebApplication.CreateBuilder(args);
+            builder.Services.AddAuthentication().AddCookie(o =>
+            {
+                o.Cookie.SecurePolicy = CookieSecurePolicy.None;
+                o.Cookie.HttpOnly = false;
+            });
+            builder.Services.AddSession(o => o.Cookie.SecurePolicy = CookieSecurePolicy.Always);
+            builder.Services.AddAntiforgery(o => o.Cookie.HttpOnly = true);
+            if (builder.Environment.IsDevelopment())
+            {
+                builder.Services.AddSession(o => o.Cookie.SecurePolicy = CookieSecurePolicy.None);
+            }
+            """));
+
+    [Fact]
+    public async Task Reports_error_details_outside_development()
+    {
+        var diagnostics = await Analyze.Program("""
+            var builder = WebApplication.CreateBuilder(args);
+            builder.Services.AddSignalR(o => o.EnableDetailedErrors = true);
+            builder.Services.AddServerSideBlazor(o => o.DetailedErrors = true);
+            builder.Services.AddRazorComponents().AddInteractiveServerComponents(o => o.DetailedErrors = builder.Environment.IsDevelopment());
+
+            var app = builder.Build();
+            app.UseDeveloperExceptionPage();
+            if (app.Environment.IsDevelopment())
+            {
+                app.UseDeveloperExceptionPage();
+            }
+
+            if (!app.Environment.IsDevelopment())
+            {
+                app.UseExceptionHandler("/error");
+            }
+            else
+            {
+                app.UseDeveloperExceptionPage();
+            }
+
+            if (app.Environment.IsEnvironment("Development"))
+            {
+                app.UseDeveloperExceptionPage();
+            }
+            """);
+
+        Assert.Equal(["BWK010: o.EnableDetailedErrors = true", "BWK010: o.DetailedErrors = true", "BWK010: UseDeveloperExceptionPage()"], diagnostics);
+    }
 }
