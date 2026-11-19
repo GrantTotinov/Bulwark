@@ -1,11 +1,11 @@
 name: Release
 
-# Push a tag like v0.1.0-preview.1 or v0.1.0. MinVer turns the tag into the package version.
+# Push a tag like v0.1.0-preview.1 or v0.1.0. MinVer turns the tag into the version of both packages.
 # One-time setup on nuget.org: a Trusted Publishing policy for this repository and workflow file,
 # and a repository secret NUGET_USER with the nuget.org account name (not an API key).
 on:
   push:
-    tags: ['v*']
+    tags: ['v*.*.*']
 
 permissions:
   contents: write  # GitHub Release
@@ -28,7 +28,10 @@ jobs:
           dotnet-version: 10.0.x
       - run: dotnet build -c Release -warnaserror
       - run: dotnet test -c Release --no-build
-      - run: dotnet pack src/Bulwark.AspNetCore.Analyzers -c Release --no-build -o artifacts
+      - name: Pack
+        run: |
+          dotnet pack src/Bulwark.AspNetCore.Analyzers -c Release --no-build -o artifacts
+          dotnet pack src/Bulwark.Cli -c Release --no-build -o artifacts
       - uses: NuGet/login@v1
         id: nuget
         with:

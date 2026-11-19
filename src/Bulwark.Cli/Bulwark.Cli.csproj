@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RollForward>Major</RollForward>
+
+    <IsPackable>true</IsPackable>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>dotnet-bulwark</ToolCommandName>
+    <PackageId>dotnet-bulwark</PackageId>
+    <Description>Scan an ASP.NET Core project or solution for security misconfigurations without changing it: `dotnet bulwark scan`. Prints a report and writes SARIF for GitHub code scanning. Uses the Bulwark.AspNetCore.Analyzers rules.</Description>
+    <PackageTags>aspnetcore;security;sast;sarif;code-scanning;static-analysis;cli;dotnet-tool;owasp</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Spectre.Console" />
+    <PackageReference Include="MinVer" PrivateAssets="all" />
+    <!-- The analyzer DLL ships next to the tool and is handed to the compiler, not loaded by the tool. -->
+    <ProjectReference Include="..\Bulwark.AspNetCore.Analyzers\Bulwark.AspNetCore.Analyzers.csproj" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\icon.png" Pack="true" PackagePath="\" />
+    <InternalsVisibleTo Include="Bulwark.AspNetCore.Analyzers.Tests" />
+  </ItemGroup>
+
+</Project>

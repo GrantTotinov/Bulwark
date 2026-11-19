@@ -1,0 +1,69 @@
+name: Bulwark ASP.NET Core security scan
+description: Find ASP.NET Core security misconfigurations (CORS, CSRF, JWT, cookies, MCP, rate limiting) and show them in GitHub code scanning.
+author: Grant Totinov
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  path:
+    description: Project, solution or folder to scan, relative to the repository root.
+    default: .
+  version:
+    description: dotnet-bulwark version. Defaults to the version of this action's tag, or the latest release.
+    default: ''
+  upload:
+    description: Upload the results to GitHub code scanning. Needs `security-events: write`.
+    default: 'true'
+  fail-on-findings:
+    description: Fail the step when there are findings, after uploading them.
+    default: 'false'
+
+outputs:
+  sarif:
+    description: Path of the SARIF file.
+    value: ${{ steps.scan.outputs.sarif }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install dotnet-bulwark
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        ACTION_REF: ${{ github.action_ref }}
+      run: |
+        if [ -z "$VERSION" ] && [[ "$ACTION_REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then VERSION="${ACTION_REF#v}"; fi
+        if [ -n "$VERSION" ]; then
+          dotnet tool update dotnet-bulwark --tool-path "$RUNNER_TEMP/bulwark" --version "$VERSION"
+        else
+          dotnet tool update dotnet-bulwark --tool-path "$RUNNER_TEMP/bulwark" --prerelease
+        fi
+
+    - name: Scan
+      id: scan
+      shell: bash
+      env:
+        TARGET: ${{ inputs.path }}
+        SARIF: ${{ runner.temp }}/bulwark.sarif
+      run: |
+        set +e
+        "$RUNNER_TEMP/bulwark/dotnet-bulwark" scan "$TARGET" --sarif "$SARIF" --fail
+        echo "exit=$?" >> "$GITHUB_OUTPUT"
+        echo "sarif=$SARIF" >> "$GITHUB_OUTPUT"
+
+    - name: Upload to code scanning
+      if: inputs.upload == 'true' && steps.scan.outputs.exit != '2'
+      uses: github/codeql-action/upload-sarif@v4
+      with:
+        sarif_file: ${{ steps.scan.outputs.sarif }}
+        category: bulwark
+
+    - name: Result
+      shell: bash
+      env:
+        EXIT: ${{ steps.scan.outputs.exit }}
+        FAIL: ${{ inputs.fail-on-findings }}
+      run: |
+        if [ "$EXIT" = "2" ]; then echo "::error::The build failed, see the Scan step."; exit 2; fi
+        if [ "$EXIT" = "1" ] && [ "$FAIL" = "true" ]; then echo "::error::Bulwark found security misconfigurations."; exit 1; fi

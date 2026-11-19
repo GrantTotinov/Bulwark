@@ -19,6 +19,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Bulwark.AspNetCore.Analyzers\Bulwark.AspNetCore.Analyzers.csproj" />
     <ProjectReference Include="..\..\src\Bulwark.AspNetCore.CodeFixes\Bulwark.AspNetCore.CodeFixes.csproj" />
+    <ProjectReference Include="..\..\src\Bulwark.Cli\Bulwark.Cli.csproj" />
   </ItemGroup>
 
   <!-- Programs from aspnetcore-security-bench: analyzed by the tests, not compiled into them. -->

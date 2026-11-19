@@ -2,6 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/Bulwark.AspNetCore.Analyzers/Bulwark.AspNetCore.Analyzers.csproj" />
     <Project Path="src/Bulwark.AspNetCore.CodeFixes/Bulwark.AspNetCore.CodeFixes.csproj" />
+    <Project Path="src/Bulwark.Cli/Bulwark.Cli.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Bulwark.AspNetCore.Analyzers.Tests/Bulwark.AspNetCore.Analyzers.Tests.csproj" />
