@@ -7,9 +7,10 @@
 
     <IsPackable>true</IsPackable>
     <PackageId>Bulwark.AspNetCore.Analyzers</PackageId>
-    <Description>Roslyn analyzers that catch ASP.NET Core security misconfigurations at build time: CORS that trusts every origin with credentials, rate limiting and antiforgery that silently do not apply, MVC actions without CSRF protection, and JWT bearer settings that accept unsigned tokens or fetch keys over HTTP.</Description>
-    <PackageTags>aspnetcore;security;analyzer;roslyn;static-analysis;sast;cors;csrf;antiforgery;jwt;rate-limiting;owasp</PackageTags>
+    <Description>Roslyn analyzers with code fixes that catch ASP.NET Core security misconfigurations at build time: CORS that trusts every origin with credentials, rate limiting and antiforgery that silently do not apply, MVC actions without CSRF protection, MCP endpoints without authorization, JWT settings that accept forged tokens, insecure cookies, error details in production and forwarded headers from any proxy.</Description>
+    <PackageTags>aspnetcore;security;analyzer;roslyn;static-analysis;sast;cors;csrf;antiforgery;jwt;mcp;cookies;rate-limiting;owasp</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
     <DevelopmentDependency>true</DevelopmentDependency>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
@@ -31,6 +32,7 @@
     <None Include="$(OutputPath)$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
     <None Include="..\Bulwark.AspNetCore.CodeFixes\$(OutputPath)Bulwark.AspNetCore.CodeFixes.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>
